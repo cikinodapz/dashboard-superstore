@@ -20,7 +20,15 @@ def create_region_page():
         
         # Regional Map
         html.Div([
-            dcc.Graph(id="regional-map")
+            dcc.Graph(
+                id="regional-map",
+                config={
+                    'scrollZoom': True,  # Enable scroll to zoom
+                    'displayModeBar': True,  # Show the mode bar with zoom controls
+                    'modeBarButtonsToRemove': ['lasso2d', 'select2d'],  # Remove unnecessary buttons
+                    'doubleClick': 'reset',  # Double-click to reset view
+                }
+            )
         ], style=custom_style['card']),
         
         # Regional Charts
@@ -58,17 +66,45 @@ def register_callbacks(app):
         
         # Regional Map
         region_sales = df.groupby(['state', 'lat', 'lng'])['sales'].sum().reset_index()
-        
-        regional_map = px.scatter_mapbox(region_sales, 
-                                       lat='lat', lon='lng',
-                                       size='sales',
-                                       hover_name='state',
-                                       hover_data={'sales': ':,.0f'},
-                                       title='🗺️ Sales Distribution by Location',
-                                       mapbox_style='open-street-map',
-                                       height=500,
-                                       zoom=3)
-        regional_map.update_layout(plot_bgcolor='white', paper_bgcolor='white')
+        region_sales['sales_scaled'] = region_sales['sales'] / region_sales['sales'].max() * 30
+
+        regional_map = px.scatter_mapbox(
+            region_sales,
+            lat='lat',
+            lon='lng',
+            size='sales_scaled',
+            color='sales',
+            color_continuous_scale='Viridis',
+            hover_name='state',
+            hover_data={'sales': ':,.0f', 'sales_scaled': False, 'lat': False, 'lng': False},
+            title='🗺️ Sales Distribution by Location',
+            mapbox_style='open-street-map',  # Changed to OpenStreetMap
+            height=500,
+            zoom=3.5,
+            center={'lat': 37.0902, 'lon': -95.7129},
+            opacity=0.7
+        )
+        regional_map.update_layout(
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            margin={'r': 20, 't': 50, 'l': 20, 'b': 20},
+            title={'x': 0.5, 'xanchor': 'center', 'font': {'size': 20, 'color': '#2c3e50'}},
+            mapbox_accesstoken=None,
+            showlegend=True,
+            mapbox=dict(
+                zoom=3.5,  # Initial zoom level
+                pitch=0,   # Flat map (no 3D tilt)
+                bearing=0, # No rotation
+                style='open-street-map',  # Consistent with mapbox_style
+                center={'lat': 37.0902, 'lon': -95.7129},
+                bounds={  # Constrain to one world map
+                    'west': -180,  # Minimum longitude
+                    'east': 180,   # Maximum longitude
+                    'south': -90,  # Minimum latitude
+                    'north': 90    # Maximum latitude
+                }
+            )
+        )
         
         # Sales by Region
         region_totals = df.groupby('region')['sales'].sum().reset_index()
